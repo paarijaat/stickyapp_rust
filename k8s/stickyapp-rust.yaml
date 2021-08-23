@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: stickyapp-rust
+  labels:
+    app: stickyapp-rust
+    service: stickyapp-rust
+spec:
+  #type: LoadBalancer
+  ports:
+  - port: 8080
+    name: http
+    targetPort: 8080
+  selector:
+    app: stickyapp-rust
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stickyapp-rust
+  labels:
+    app: stickyapp-rust
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: stickyapp-rust
+  template:
+    metadata:
+      labels:
+        app: stickyapp-rust
+    spec:
+      containers:
+      - name: stickyapp-rust
+        image: paarijaat-debian-vm:5000/paarijaat/stickyapp_rust
+        lifecycle:
+          preStop:
+            exec:
+              command: ["curl", "localhost:8080/shutdown"]
+        env:
+          - name: PORT
+            value: "8080"
+          - name: RUST_LOG
+            value: "info"
+        resources:
+          requests:
+            cpu: "50m"
+        imagePullPolicy: IfNotPresent #Always
+        ports:
+        - containerPort: 8080

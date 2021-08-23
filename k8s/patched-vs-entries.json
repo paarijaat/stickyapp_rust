@@ -1,0 +1,38 @@
+{
+    "match": [
+        {
+            "authority": {
+                "prefix": "stickyapp-rust.10.0.2.15.sslip.io"
+            },
+            "gateways": [
+                "knative-serving/knative-ingress-gateway"
+            ],
+            "headers": {
+                "use-direct": {
+                    "exact": "true"
+                }
+            }
+        }
+    ],
+    "retries": {},
+    "route": [
+        {
+            "destination": {
+                "host": "stickyapp-rust-00001.default.svc.cluster.local",
+                "subset": "direct",
+                "port": {
+                    "number": 8080
+                }
+            },
+            "headers": {
+                "request": {
+                    "set": {
+                        "Knative-Serving-Namespace": "default",
+                        "Knative-Serving-Revision": "stickyapp-rust-00001"
+                    }
+                }
+            },
+            "weight": 100
+        }
+    ]
+}

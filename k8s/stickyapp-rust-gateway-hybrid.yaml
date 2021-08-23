@@ -1,0 +1,60 @@
+# curl -H "use-direct: true" -H "x-envoy-original-dst-host: 10.42.0.37:8080" http://stickyapp-rust.10.0.2.15.sslip.io/sessions
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: stickyapp-rust-gateway
+spec:
+  selector:
+    istio: ingressgateway # use istio default controller
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "stickyapp-rust.10.0.2.15.sslip.io"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: stickyapp-rust-hybrid
+spec:
+  host: stickyapp-rust.default.svc.cluster.local
+  subsets:
+  - name: normal
+    trafficPolicy:
+      loadBalancer:
+        simple: ROUND_ROBIN
+  - name: direct
+    trafficPolicy:
+      loadBalancer:
+        simple: PASSTHROUGH
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: stickyapp-rust-hybrid
+spec:
+  hosts:
+  - "stickyapp-rust.10.0.2.15.sslip.io"
+  gateways:
+  - stickyapp-rust-gateway
+  http:
+  - name: "passthrough-route"
+    match:
+    - headers:
+        use-direct:
+          exact: "true"
+    route:
+    - destination:
+        host: stickyapp-rust.default.svc.cluster.local
+        subset: direct
+        port:
+          number: 8080
+  - name: "loadbalanced-route"
+    route:
+    - destination:
+        host: stickyapp-rust.default.svc.cluster.local
+        subset: normal
+        port:
+          number: 8080

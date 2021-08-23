@@ -1,0 +1,243 @@
+{
+    "apiVersion": "networking.istio.io/v1beta1",
+    "kind": "VirtualService",
+    "metadata": {
+        "annotations": {
+            "networking.internal.knative.dev/rollout": "{\"configurations\":[{\"configurationName\":\"stickyapp-rust\",\"percent\":100,\"revisions\":[{\"revisionName\":\"stickyapp-rust-00001\",\"percent\":100}],\"stepParams\":{}}]}",
+            "networking.knative.dev/ingress.class": "istio.ingress.networking.knative.dev",
+            "serving.knative.dev/creator": "system:admin",
+            "serving.knative.dev/lastModifier": "system:admin"
+        },
+        "creationTimestamp": "2021-08-22T18:02:05Z",
+        "generation": 1,
+        "labels": {
+            "networking.internal.knative.dev/ingress": "stickyapp-rust",
+            "serving.knative.dev/route": "stickyapp-rust",
+            "serving.knative.dev/routeNamespace": "default"
+        },
+        "managedFields": [
+            {
+                "apiVersion": "networking.istio.io/v1alpha3",
+                "fieldsType": "FieldsV1",
+                "fieldsV1": {
+                    "f:metadata": {
+                        "f:annotations": {
+                            ".": {},
+                            "f:networking.internal.knative.dev/rollout": {},
+                            "f:networking.knative.dev/ingress.class": {},
+                            "f:serving.knative.dev/creator": {},
+                            "f:serving.knative.dev/lastModifier": {}
+                        },
+                        "f:labels": {
+                            ".": {},
+                            "f:networking.internal.knative.dev/ingress": {},
+                            "f:serving.knative.dev/route": {},
+                            "f:serving.knative.dev/routeNamespace": {}
+                        },
+                        "f:ownerReferences": {
+                            ".": {},
+                            "k:{\"uid\":\"90ecd894-0591-4064-9722-5298a64dddad\"}": {
+                                ".": {},
+                                "f:apiVersion": {},
+                                "f:blockOwnerDeletion": {},
+                                "f:controller": {},
+                                "f:kind": {},
+                                "f:name": {},
+                                "f:uid": {}
+                            }
+                        }
+                    },
+                    "f:spec": {
+                        ".": {},
+                        "f:gateways": {},
+                        "f:hosts": {},
+                        "f:http": {}
+                    }
+                },
+                "manager": "controller",
+                "operation": "Update",
+                "time": "2021-08-22T18:02:05Z"
+            }
+        ],
+        "name": "stickyapp-rust-ingress",
+        "namespace": "default",
+        "ownerReferences": [
+            {
+                "apiVersion": "networking.internal.knative.dev/v1alpha1",
+                "blockOwnerDeletion": true,
+                "controller": true,
+                "kind": "Ingress",
+                "name": "stickyapp-rust",
+                "uid": "90ecd894-0591-4064-9722-5298a64dddad"
+            }
+        ],
+        "resourceVersion": "5692223",
+        "uid": "b2c0424e-70c9-4c44-821b-7015febca4ac"
+    },
+    "spec": {
+        "gateways": [
+            "knative-serving/knative-ingress-gateway",
+            "knative-serving/knative-local-gateway"
+        ],
+        "hosts": [
+            "stickyapp-rust.10.0.2.15.sslip.io",
+            "stickyapp-rust.default",
+            "stickyapp-rust.default.svc",
+            "stickyapp-rust.default.svc.cluster.local"
+        ],
+        "http": [
+            {
+                "headers": {
+                    "request": {
+                        "set": {
+                            "K-Network-Hash": "2620f717497030b5aed8d0fc97743b472286a2949ae9d9f291e5badeda12e3cd"
+                        }
+                    }
+                },
+                "match": [
+                    {
+                        "authority": {
+                            "prefix": "stickyapp-rust.default"
+                        },
+                        "gateways": [
+                            "knative-serving/knative-local-gateway"
+                        ],
+                        "headers": {
+                            "K-Network-Hash": {
+                                "exact": "override"
+                            }
+                        }
+                    }
+                ],
+                "retries": {},
+                "route": [
+                    {
+                        "destination": {
+                            "host": "stickyapp-rust-00001.default.svc.cluster.local",
+                            "port": {
+                                "number": 80
+                            }
+                        },
+                        "headers": {
+                            "request": {
+                                "set": {
+                                    "Knative-Serving-Namespace": "default",
+                                    "Knative-Serving-Revision": "stickyapp-rust-00001"
+                                }
+                            }
+                        },
+                        "weight": 100
+                    }
+                ]
+            },
+            {
+                "match": [
+                    {
+                        "authority": {
+                            "prefix": "stickyapp-rust.default"
+                        },
+                        "gateways": [
+                            "knative-serving/knative-local-gateway"
+                        ]
+                    }
+                ],
+                "retries": {},
+                "route": [
+                    {
+                        "destination": {
+                            "host": "stickyapp-rust-00001.default.svc.cluster.local",
+                            "port": {
+                                "number": 80
+                            }
+                        },
+                        "headers": {
+                            "request": {
+                                "set": {
+                                    "Knative-Serving-Namespace": "default",
+                                    "Knative-Serving-Revision": "stickyapp-rust-00001"
+                                }
+                            }
+                        },
+                        "weight": 100
+                    }
+                ]
+            },
+            {
+                "headers": {
+                    "request": {
+                        "set": {
+                            "K-Network-Hash": "2620f717497030b5aed8d0fc97743b472286a2949ae9d9f291e5badeda12e3cd"
+                        }
+                    }
+                },
+                "match": [
+                    {
+                        "authority": {
+                            "prefix": "stickyapp-rust.10.0.2.15.sslip.io"
+                        },
+                        "gateways": [
+                            "knative-serving/knative-ingress-gateway"
+                        ],
+                        "headers": {
+                            "K-Network-Hash": {
+                                "exact": "override"
+                            }
+                        }
+                    }
+                ],
+                "retries": {},
+                "route": [
+                    {
+                        "destination": {
+                            "host": "stickyapp-rust-00001.default.svc.cluster.local",
+                            "port": {
+                                "number": 80
+                            }
+                        },
+                        "headers": {
+                            "request": {
+                                "set": {
+                                    "Knative-Serving-Namespace": "default",
+                                    "Knative-Serving-Revision": "stickyapp-rust-00001"
+                                }
+                            }
+                        },
+                        "weight": 100
+                    }
+                ]
+            },
+            {
+                "match": [
+                    {
+                        "authority": {
+                            "prefix": "stickyapp-rust.10.0.2.15.sslip.io"
+                        },
+                        "gateways": [
+                            "knative-serving/knative-ingress-gateway"
+                        ]
+                    }
+                ],
+                "retries": {},
+                "route": [
+                    {
+                        "destination": {
+                            "host": "stickyapp-rust-00001.default.svc.cluster.local",
+                            "port": {
+                                "number": 80
+                            }
+                        },
+                        "headers": {
+                            "request": {
+                                "set": {
+                                    "Knative-Serving-Namespace": "default",
+                                    "Knative-Serving-Revision": "stickyapp-rust-00001"
+                                }
+                            }
+                        },
+                        "weight": 100
+                    }
+                ]
+            }
+        ]
+    }
+}

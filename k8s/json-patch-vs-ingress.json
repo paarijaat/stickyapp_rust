@@ -1,0 +1,5 @@
+[
+  {"op": "copy", "from": "/spec/http/3", "path": "/spec/http/0"},
+  {"op": "add", "path": "/spec/http/0/match/0/headers", "value": {"use-direct": {"exact": "true"}}},
+  {"op": "add", "path": "/spec/http/0/route/0/destination/subset", "value": "direct"}
+]

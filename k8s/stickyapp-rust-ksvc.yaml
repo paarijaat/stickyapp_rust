@@ -1,0 +1,21 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: stickyapp-rust
+spec:
+  template:
+    spec:
+      imagePullSecrets:
+      - name: regcred
+      containers:
+      - name: stickyapp-rust
+        image: paarijaat-debian-vm:5000/paarijaat/stickyapp_rust
+        resources:
+          requests:
+            cpu: "100m"
+        imagePullPolicy: IfNotPresent #Always
+        env:
+          - name: RUST_LOG
+            value: "info"
+        ports:
+        - containerPort: 8080
