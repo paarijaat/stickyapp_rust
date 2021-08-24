@@ -27,6 +27,15 @@ pub struct SessionResponseMessage {
     pub status_message: String,
     pub value: f64,
 }
+impl Default for SessionResponseMessage {
+    fn default() -> Self { 
+        Self {
+            status: false,
+            status_message: String::from(""),
+            value: 0.0
+        }
+    }
+}
 
 pub fn session_status_to_string(status: &SessionResponseStatus) -> String {
     match status {
@@ -76,8 +85,13 @@ pub async fn send_command(
     }
 }
 
-pub fn send_response(sessionid: &String, response_status: SessionResponseStatus, message: String, response_tx: SenderSessionResponseChannel) -> bool {
-    if let Err(_) = response_tx.send((response_status, message)) {
+pub fn send_response(
+    sessionid: &String, 
+    response_status: SessionResponseStatus, 
+    response_message: SessionResponseMessage, 
+    response_tx: SenderSessionResponseChannel
+) -> bool {
+    if let Err(_) = response_tx.send((response_status, serde_json::to_string(&response_message).unwrap())) {
         tracing::warn!("[{}] Error sending Response for SessionCommand", sessionid);
         return false;
     }
@@ -95,7 +109,7 @@ pub async fn wait_for_init(sessionid: &str, init_success_rx: ReceiverSessionResp
                 SessionResponseStatus::SessionExit => {
                     let err_msg = format!("[{}] Init failed for session. {}", sessionid, init_response);
                     tracing::warn!("{}", err_msg);
-                    Err(err_msg)
+                    Err(init_response)
                 }
             }
         }

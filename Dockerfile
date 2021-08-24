@@ -18,5 +18,4 @@ RUN RUSTFLAGS="-C target-cpu=native" cargo build --release
 FROM debian:buster
 RUN apt-get update && apt-get install -y apt-utils net-tools curl inetutils-ping libfftw3-dev && rm -rf /var/lib/apt/lists/*
 COPY --from=stickyapp-rust-builder /usr/src/stickyapp_rust/target/release/stickyapp_rust .
-COPY ./scripts/dockerrun.sh .
-CMD ["/dockerrun.sh"]
+CMD ["/stickyapp_rust"]

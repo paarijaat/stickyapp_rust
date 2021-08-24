@@ -18,6 +18,7 @@ use tower_http::{
     add_extension::AddExtensionLayer, trace::TraceLayer,
 };
 use chrono::prelude::*;
+use tokio::signal::unix::{signal, SignalKind};
 
 mod session;
 mod session_encrypted;
@@ -96,7 +97,7 @@ async fn create_session(
         None => false
     };
     let sessionid = new_session_id(need_encrypted_session);
-    tracing::info!("[{}] Trying, Session creation. Encrypted: {}", sessionid, need_encrypted_session);
+    tracing::debug!("[{}] Trying, Session creation. Encrypted: {}", sessionid, need_encrypted_session);
     let mut localip = String::from("");
     let mut create_response = SessionResponse {
         status: true,
@@ -138,7 +139,7 @@ async fn create_session(
                 localip = shared_state.localip.clone();
             }
             tracing::info!("[{}] Success, Session created at {}. {}", sessionid, localip, init_response);
-            create_response.message = format!("Success, Session created at {}. {}", localip, init_response);
+            create_response.message = init_response;
         }
         Err(error_msg) => {
             let err_msg = format!("[{}] Failure while creating session. {}", sessionid, error_msg);
@@ -164,7 +165,7 @@ async fn session_action(
     extract::Json(action_request): extract::Json<SessionRequest>,
     Extension(state): Extension<SharedState>,
 ) -> impl IntoResponse {
-    tracing::info!("[{}] session_action request received", sessionid);
+    tracing::debug!("[{}] session_action request received", sessionid);
 
     // Access shared state to extract session info
     let session_info = 
@@ -264,7 +265,7 @@ fn handle_error(error: BoxError) -> Result<impl IntoResponse, Infallible> {
 async fn main() {
     if std::env::var("RUST_LOG").is_err() {
         //std::env::set_var("RUST_LOG", "debug");
-        std::env::set_var("RUST_LOG", "debug,tower_http=info,hyper=info")
+        std::env::set_var("RUST_LOG", "info,tower_http=info,hyper=info")
     }
 
     // initialize tracing
@@ -315,7 +316,16 @@ async fn main() {
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .with_graceful_shutdown(async {
-            shutdown_rx.recv().await;
+            let mut signal_sigint = signal(SignalKind::interrupt()).unwrap();
+            let mut signal_sigterm = signal(SignalKind::terminate()).unwrap();
+            let mut signal_sigquit = signal(SignalKind::quit()).unwrap();
+            tokio::select! {
+                _ = shutdown_rx.recv() => {}
+                _ = signal_sigint.recv() => {tracing::warn!("SIGINT received");}
+                _ = signal_sigterm.recv() => {tracing::warn!("SIGTERM received");}
+                _ = signal_sigquit.recv() => {tracing::warn!("SIGQUIT received");}
+            }
+            //shutdown_rx.recv().await;
             tracing::info!("Server will finish in two seconds");
             tokio::time::sleep(Duration::from_millis(1000)).await;
         })

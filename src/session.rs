@@ -20,7 +20,12 @@ async fn session_loop(
 
     let mut values: Vec<f64> = Vec::new();
 
-    if !send_response(&sessionid,SessionResponseStatus::SessionOk,String::from("Session Initialized"),init_success_tx) {
+    if !send_response(
+        &sessionid,
+        SessionResponseStatus::SessionOk,
+        SessionResponseMessage{status_message: String::from("Session Initialized"), ..SessionResponseMessage::default()},
+        init_success_tx
+    ) {
         return Err(())
     }
     tracing::info!("[{}] Session initialized", sessionid);
@@ -29,10 +34,13 @@ async fn session_loop(
     while let Some((cmd, resp)) = request_channel_rx.recv().await {
         match cmd {
             SessionRequestCommand::SessionStop => {
-                tracing::info!("[{}] Received SessionStop", sessionid);
-                let response_status = SessionResponseStatus::SessionExit;
-                let response_message = format!("[{}] Stopping session", sessionid);
-                if let Err(_) = resp.send((response_status, response_message)) {
+                let status_message = format!("[{}] Stopping session", sessionid);
+                tracing::info!("{}", status_message);
+                if !send_response(
+                    &sessionid, 
+                    SessionResponseStatus::SessionExit, 
+                    SessionResponseMessage{status_message, ..SessionResponseMessage::default()}, 
+                    resp) {
                     tracing::warn!("[{}] Error sending Response for SessionStop", sessionid);
                 }
                 break;
@@ -40,40 +48,44 @@ async fn session_loop(
 
             SessionRequestCommand::SessionCommand(message) => {
                 tracing::debug!("[{}] Received SessionCommand. Message: {}", sessionid, message);
-                let mut response_message = SessionResponseMessage {
-                    status: false,
-                    status_message: String::from(""),
-                    value: 0.0,
-                };
-
-                 let request_message: SessionRequestMessage = match serde_json::from_str(message.as_str()) {
+                let request_message: SessionRequestMessage = match serde_json::from_str(message.as_str()) {
                     Ok(m) => m,
                     Err(e) => {
-                        let err_str = format!("[{}] Failed to json decode request's message field. {}", sessionid, e.to_string());
-                        tracing::warn!("{}", err_str);
-                        response_message.status_message = err_str;
-                        send_response(&sessionid, SessionResponseStatus::SessionOk, serde_json::to_string(&response_message).unwrap(), resp);
+                        let status_message = format!("[{}] Failed to json decode request's message field. {}", sessionid, e.to_string());
+                        tracing::warn!("{}", status_message);
+                        send_response(
+                            &sessionid, 
+                            SessionResponseStatus::SessionOk, 
+                            SessionResponseMessage{status_message, ..SessionResponseMessage::default()},
+                            resp
+                        );
                         continue;
                     }
                 };
-                
+
                 tracing::debug!("[{}] Received message: {:?}", sessionid, request_message);
+
 
                 match request_message.action.as_str() {
                     "encrypt" => {
-                        let msg_str = format!("[{}] Encrypt {} action received", sessionid, request_message.value);
+                        let msg_str = format!("[{}] Encrypt action received. Value {}", sessionid, request_message.value);
                         tracing::debug!("{}", msg_str);
 
                         values.push(request_message.value);
 
-                        response_message.status = true;
-                        response_message.status_message = msg_str;
-                        send_response(&sessionid, SessionResponseStatus::SessionOk, serde_json::to_string(&response_message).unwrap(), resp);
+                        let response_message = SessionResponseMessage {
+                            status: true,
+                            status_message: msg_str,
+                            value: request_message.value,
+                        };
+
+                        send_response(&sessionid, SessionResponseStatus::SessionOk, response_message, resp);
                         continue;
                     }
                     "mean" => {
                         let msg_str = format!("[{}] Mean action received", sessionid);
                         tracing::debug!("{}", msg_str);
+                        let mut response_message = SessionResponseMessage{status_message: msg_str, ..SessionResponseMessage::default()};
                         
                         if values.len() > 0 {
                             response_message.status = true;
@@ -84,23 +96,21 @@ async fn session_loop(
                             response_message.value = sum / (values.len() as f64);
                             values.clear();
                         }
-                        response_message.status_message = msg_str;
-                        send_response(&sessionid, SessionResponseStatus::SessionOk, serde_json::to_string(&response_message).unwrap(), resp);
+                        send_response(&sessionid, SessionResponseStatus::SessionOk, response_message, resp);
                         continue;
                     }
                     "shutdown" => {
                         let err_str = format!("[{}] Shutdown action recevied", sessionid);
                         tracing::info!("{}", err_str);
-                        response_message.status = true;
-                        response_message.status_message = err_str;
-                        send_response(&sessionid, SessionResponseStatus::SessionExit, serde_json::to_string(&response_message).unwrap(), resp);
+                        let response_message = SessionResponseMessage{status: true, status_message: err_str, ..SessionResponseMessage::default()};
+                        send_response(&sessionid, SessionResponseStatus::SessionExit, response_message, resp);
                         break;
                     }
                     _ => {
                         let err_str = format!("[{}] Unknown action. Received message: {:?}", sessionid, request_message);
                         tracing::warn!("{}", err_str);
-                        response_message.status_message = err_str;
-                        send_response(&sessionid, SessionResponseStatus::SessionOk, serde_json::to_string(&response_message).unwrap(), resp);
+                        let response_message = SessionResponseMessage{status_message: err_str, ..SessionResponseMessage::default()};
+                        send_response(&sessionid, SessionResponseStatus::SessionOk, response_message, resp);
                         continue;
                     }
                 }
