@@ -23,7 +23,7 @@ async fn session_loop(
     if !send_response(
         &sessionid,
         SessionResponseStatus::SessionOk,
-        SessionResponseMessage{status_message: String::from("Session Initialized"), ..SessionResponseMessage::default()},
+        SessionResponseMessage{status: true, status_message: String::from("Session Initialized"), ..SessionResponseMessage::default()},
         init_success_tx
     ) {
         return Err(())
@@ -39,7 +39,7 @@ async fn session_loop(
                 if !send_response(
                     &sessionid, 
                     SessionResponseStatus::SessionExit, 
-                    SessionResponseMessage{status_message, ..SessionResponseMessage::default()}, 
+                    SessionResponseMessage{status: true, status_message, ..SessionResponseMessage::default()}, 
                     resp) {
                     tracing::warn!("[{}] Error sending Response for SessionStop", sessionid);
                 }
@@ -56,7 +56,7 @@ async fn session_loop(
                         send_response(
                             &sessionid, 
                             SessionResponseStatus::SessionOk, 
-                            SessionResponseMessage{status_message, ..SessionResponseMessage::default()},
+                            SessionResponseMessage{status: false, status_message, ..SessionResponseMessage::default()},
                             resp
                         );
                         continue;

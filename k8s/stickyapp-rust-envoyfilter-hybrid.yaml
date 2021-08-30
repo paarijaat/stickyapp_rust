@@ -1,3 +1,4 @@
+# istioctl proxy-config cluster istio-ingressgateway-569f8cdc97-mjml7.istio-system -o json | jq
 apiVersion: networking.istio.io/v1alpha3
 kind: EnvoyFilter
 metadata:

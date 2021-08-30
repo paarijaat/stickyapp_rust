@@ -1,8 +1,13 @@
 use axum::{
-    prelude::*, 
-    extract::{Extension, Path},
+    handler::{get,post},
+    body::Body,
+    extract,
+    response,
     response::{IntoResponse}, 
-    http::{StatusCode,header::HeaderName,HeaderValue,Response},
+    http::{Request,StatusCode,header::{HeaderName,HeaderValue},Response},
+    AddExtensionLayer,
+    Router,
+    Json,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -14,17 +19,21 @@ use std::{
     time::Duration,
 };
 use tower::{BoxError, ServiceBuilder};
-use tower_http::{
-    add_extension::AddExtensionLayer, trace::TraceLayer,
-};
+use tower_http::{trace::TraceLayer};
 use chrono::prelude::*;
 use tokio::signal::unix::{signal, SignalKind};
+use lazy_static::lazy_static;
 
 mod session;
 mod session_encrypted;
 mod session_common;
 use session_common::*;
 mod utils;
+
+lazy_static! {
+    /// This is an example for using doc comment attributes
+    static ref LOCALIP: String = utils::get_local_ip_address().unwrap();
+}
 
 // List sessions response message
 #[derive(Serialize)]
@@ -44,23 +53,47 @@ struct SessionResponse {
     sessionid: String,
 }
 
+#[derive(Serialize)]
+struct DebugResponse {
+    message: String,
+    request: String,
+}
+
 // Shared state storing communication channel to sessions
 type SharedState = Arc<RwLock<State>>;
 struct State {
     db: HashMap<String, session_common::SenderSessionRequestChannel>,
-    localip: String,
     shutdown_tx: tokio::sync::mpsc::Sender<()>,
 }
 
 // basic handler that responds with a static string
-async fn root(Extension(state): Extension<SharedState>,) -> String {
-    let msg_str = format!("ok, localip {}, {}", &state.read().unwrap().localip, Local::now().to_rfc2822());
-    tracing::info!("Request for / , returning: {}", msg_str);
+async fn root() -> String {
+    let version = option_env!("CARGO_PKG_VERSION").unwrap();
+    let localip = LOCALIP.clone();
+    let msg_str = format!("ok, localip {}, version {}, time: {}", localip, version, Local::now().to_rfc2822());
+    tracing::warn!("Request for / , returning: {}", msg_str);
     msg_str
 }
 
+// basic handler that responds with a static string
+async fn debug_handler_get(
+    req: Request<Body>
+) -> impl IntoResponse {
+    let version = option_env!("CARGO_PKG_VERSION").unwrap();
+    let localip = LOCALIP.clone();
+    let msg_str = format!("ok, localip {}, version {}, time: {}", localip, version, Local::now().to_rfc2822());
+    let req_str = format!("{:?}", req);
+    tracing::warn!("Request for /debug, {}, request: {}", msg_str, req_str);
+    let debug_response = DebugResponse {
+        message: msg_str,
+        request: req_str,
+    };
+    //let response: Response<<Json<DebugResponse> as IntoResponse>::Body> = Json(create_response).into_response();
+    response::Json(debug_response)
+}
+
 async fn list_sessions(
-    Extension(state): Extension<SharedState>,
+    extract::Extension(state): extract::Extension<SharedState>,
 ) -> impl IntoResponse {
     tracing::info!("list_sessions request received");
     let mut sessionids: Vec<String> = Vec::new();
@@ -89,7 +122,7 @@ impl Default for SessionRequestQuery {
 }
 async fn create_session(
     extract::Json(create_request): extract::Json<SessionRequest>,
-    Extension(state): Extension<SharedState>,
+    extract::Extension(state): extract::Extension<SharedState>,
     session_query: extract::Query<SessionRequestQuery>
 ) -> impl IntoResponse {
     let need_encrypted_session: bool = match session_query.encrypted {
@@ -98,7 +131,7 @@ async fn create_session(
     };
     let sessionid = new_session_id(need_encrypted_session);
     tracing::debug!("[{}] Trying, Session creation. Encrypted: {}", sessionid, need_encrypted_session);
-    let mut localip = String::from("");
+    let localip = LOCALIP.clone();
     let mut create_response = SessionResponse {
         status: true,
         message: String::from(""),
@@ -136,7 +169,7 @@ async fn create_session(
                 //state.write().unwrap().db.insert(sessionid.clone(), request_channel_tx);
                 let mut shared_state = state.write().unwrap();
                 shared_state.db.insert(sessionid.clone(), request_channel_tx);
-                localip = shared_state.localip.clone();
+                //localip = shared_state.localip.clone();
             }
             tracing::info!("[{}] Success, Session created at {}. {}", sessionid, localip, init_response);
             create_response.message = init_response;
@@ -148,7 +181,7 @@ async fn create_session(
             create_response.message = err_msg
         }
     }
-    let mut response: Response<Body> = response::Json(create_response).into_response();
+    let mut response: Response<<Json<SessionResponse> as IntoResponse>::Body> = Json(create_response).into_response();
     response.headers_mut().insert(
         HeaderName::from_static("x-sessionid"),
         HeaderValue::from_str(sessionid.as_str()).unwrap(),
@@ -161,9 +194,9 @@ async fn create_session(
 }
 
 async fn session_action(
-    Path(sessionid): Path<String>,
+    extract::Path(sessionid): extract::Path<String>,
     extract::Json(action_request): extract::Json<SessionRequest>,
-    Extension(state): Extension<SharedState>,
+    extract::Extension(state): extract::Extension<SharedState>,
 ) -> impl IntoResponse {
     tracing::debug!("[{}] session_action request received", sessionid);
 
@@ -217,7 +250,7 @@ async fn session_action(
 }
 
 async fn shutdown_handler(
-    Extension(state): Extension<SharedState>,
+    extract::Extension(state): extract::Extension<SharedState>,
 ) -> &'static str {
     tracing::warn!("Server Shutdown request received");
     {
@@ -273,6 +306,8 @@ async fn main() {
 
     let port = std::env::var("PORT").unwrap_or("8080".into()).parse::<u16>().unwrap();
 
+    let localip = LOCALIP.clone();
+    /*
     let localip = match utils::get_local_ip_address() {
         Some(ip) => ip,
         None => {
@@ -280,20 +315,23 @@ async fn main() {
             return;
         }
     };
+    */
+
+    let version = option_env!("CARGO_PKG_VERSION").unwrap();
 
     let (shutdown_tx, mut shutdown_rx) = tokio::sync::mpsc::channel::<()>(1);
     //let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel::<()>();
-    tracing::info!("Starting at localip {}", localip);
+    tracing::warn!("Starting at localip {}, version {}", localip, version);
     let shared_state = State {
         db: HashMap::new(),
-        localip: localip.clone(),
         shutdown_tx,
     };
 
     // build our application with a route
-    let app =
+    let app = Router::new()
         // `GET /` goes to `root`
-        route("/", get(root))
+        .route("/", get(root))
+        .route("/debug", get(debug_handler_get))
         .route("/shutdown", get(shutdown_handler))
         .route("/sessions", get(list_sessions).post(create_session))
         .route("/sessions/:sid", post(session_action))
@@ -312,7 +350,7 @@ async fn main() {
     // run our app with hyper
     // `axum::Server` is a re-export of `hyper::Server`
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    tracing::info!("Listening on {}", addr);
+    tracing::warn!("Listening on {}", addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .with_graceful_shutdown(async {
@@ -326,10 +364,10 @@ async fn main() {
                 _ = signal_sigquit.recv() => {tracing::warn!("SIGQUIT received");}
             }
             //shutdown_rx.recv().await;
-            tracing::info!("Server will finish in two seconds");
+            tracing::warn!("Server will finish in two seconds");
             tokio::time::sleep(Duration::from_millis(1000)).await;
         })
         .await
         .unwrap();
-    tracing::info!("Server finished");
+    tracing::warn!("Server finished");
 }

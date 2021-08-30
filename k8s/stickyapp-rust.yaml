@@ -32,7 +32,8 @@ spec:
     spec:
       containers:
       - name: stickyapp-rust
-        image: paarijaat-debian-vm:5000/paarijaat/stickyapp_rust
+        image: paarijaat/stickyapp_rust:v0.1.3
+        imagePullPolicy: IfNotPresent #Always
         lifecycle:
           preStop:
             exec:
@@ -44,7 +45,10 @@ spec:
             value: "info"
         resources:
           requests:
+            memory: "100Mi"
             cpu: "50m"
-        imagePullPolicy: IfNotPresent #Always
+          limits:
+            memory: "200Mi"
+            cpu: "400m"
         ports:
         - containerPort: 8080

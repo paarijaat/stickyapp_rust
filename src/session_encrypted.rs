@@ -111,7 +111,7 @@ async fn session_loop(
                 if !send_response(
                     &sessionid, 
                     SessionResponseStatus::SessionExit, 
-                    SessionResponseMessage{status_message, ..SessionResponseMessage::default()}, 
+                    SessionResponseMessage{status: true, status_message, ..SessionResponseMessage::default()}, 
                     resp) {
                     tracing::warn!("[{}] Error sending Response for SessionStop", sessionid);
                 }

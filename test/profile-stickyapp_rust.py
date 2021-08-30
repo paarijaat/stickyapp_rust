@@ -3,6 +3,7 @@ import json
 from locust import task, between, HttpUser
 from locust.contrib.fasthttp import FastHttpUser
 from profile_utils import ProfileUtils
+import logging
 
 """
 Simple benchmarking profile built for stickyapp_rust
@@ -13,10 +14,12 @@ class HeStickyAppRust(HttpUser):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.host = "localhost:8080"
+        self.host = "stickyapp-rust.10.0.2.15.sslip.io"
+        #self.host = "localhost:8080"
         self.podport = 8080
         self._utils = ProfileUtils(self, self.host)
         self.logger = self._utils.get_logger()
+        self.logger.setLevel(logging.DEBUG)
         self._num_messages_sent = 0
         self._num_responses_recv = 0
         self.sessionid = None
